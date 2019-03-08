@@ -1,77 +1,75 @@
-#!/usr/bin/env/ python
-from pathlib import Path
 from Helper import *
-import re
 import xlsxwriter
-import sys
+import re
+import shutil
+from time import gmtime, strftime
 import os
 
-channelDataDict = {}    # Highest level Dict
 
-
-def main(file_path):
+def main(file):
+    base_path = os.getcwd()
+    file_path = '{}\\To Convert\\{}.csv'.format(base_path, file)
+    file_name = file + '_generated.xls'
     # Opens the selected file and splits elements on a '.' or ',' and organizes the data into lists
     with open(file_path) as f:
-        channel_list = list(map(lambda n: re.split('[,.]', n), f.readlines()))
+        channel_list = list(map(lambda n: re.split('[,.\t]', n), f.readlines()))
         current_channel = get_channel_name(channel_list[0])
 
-    # Creates a new Key:Value pair in the master dictionary where
-    # Key is the current channel name and the value is an empty dict
-    channelDataDict[current_channel] = {}
+    #############################################################
+    # Creates a master dictionary where each key will           #
+    # be a channel name, each value will be a Dict containing   #
+    # information  on that specific channel                     #
+    #############################################################
+    channel_data_dict = {current_channel: {}}
 
     # This loop will assemble data from the old format of CSV into dictionaries to be referenced later
     for currentLine in channel_list:
         # Execute if reading data from a new channel
-        if current_channel != get_channel_name(currentLine):
-            current_channel = get_channel_name(currentLine)
-            channelDataDict[current_channel] = {}
-        channelDataDict[current_channel][get_channel_key(currentLine)] = get_channel_val(currentLine)
+        try:
+            if current_channel != get_channel_name(currentLine):
+                current_channel = get_channel_name(currentLine)
+                channel_data_dict[current_channel] = {}
+                channel_data_dict[current_channel]['Type'] = get_io_type(currentLine)
+            channel_data_dict[current_channel][get_channel_key(currentLine)] = get_channel_val(currentLine)
+        except:
+            pass
 
-    # Create the Workbook
-    workbook = xlsxwriter.Workbook('TestCSV.xls')
+    # Create the workbook for the data to be written to
+    workbook = xlsxwriter.Workbook(file + '_generated.xls')
     worksheet = workbook.add_worksheet()
-    group_names = ["ProgID", "Tag", "Detail", "Offset", "Scaling", "TaskName", "Group", "CalDate", "Cab Connector"]
 
-    # Write Headers
+    # Standard Headers
+    group_names = ['ProgID', 'Tag', 'Detail', 'Type', 'Offset', 'Scaling', 'TaskName', 'Group', 'CalDate', 'Cab Connector']
+
+    # Write Headers to worksheet
     for i in range(len(group_names)):
         worksheet.write(0, i, group_names[i])
 
-    # Write Data
-    line_number = 1
-    for key in channelDataDict:
-            for i in range(len(group_names)):
-                try:
-                    worksheet.write(line_number, i + 1, channelDataDict[key][group_names[i+1]])
-                except:
-                    worksheet.write(line_number, i + 1, "N/A")
-            line_number += 1
-
+    # Write Date to worksheet
+    line_number: int = 1
+    for key in channel_data_dict:
+        for i in range(len(group_names) - 1):
+            try:
+                current_tag = group_names[i+1]
+                info = channel_data_dict[key][current_tag].strip()
+                worksheet.write(line_number, i + 1, info)
+            except KeyError:
+                # Error will be thrown if no data is present, will write nothing to cell.
+                worksheet.write(line_number, i + 1, '')
+        line_number += 1
     workbook.close()
-    print("Conversion complete.")
+
+    # Place the file into the converted folder and account for any duplicates
+    validated_name = validate_name(file_name)
+    shutil.move('{}\\{}'.format(base_path, file_name),
+                '{}\\{}\\{}'.format(base_path, 'Converted', validated_name))
+
+    print("\nConversion complete. {} is now in the 'Converted' folder.".format(validated_name))
+    print(strftime('%Y-%m-%d %H:%M:%S', gmtime()))
 
 
-if __name__ == "__main__":
-    if len(sys.argv) <= 1:
-        print("Please provide path to file to convert as a command line argument")
-        print("Use 'help' as an argument for more information")
-        exit()
-    if sys.argv[1] == "Help" or sys.argv[1] == "help":
-        print("Provide an exact path to the file you want to convert.")
-        print("If you want to convert a file in the same location as this file ")
-        print("pass 'Here' and then the name of the file")
-        exit()
-    if sys.argv[1] == "Here" or sys.argv[1] == "here":
-        try:
-            filePath = os.getcwd() + '/' + sys.argv[2]
-        except IndexError:
-            print("Please provide path to file to convert as a command line argument after 'Here'")
-    else:
-        filePath = sys.argv[1]
-
-    if os.path.exists(filePath):
-        main(filePath)
-    else:
-        print("Invalid path")
-        exit()
-
+if __name__ == '__main__':
+        settingsFile = os.getcwd() + '\\settings.txt'.format()
+        process_settings(settingsFile)
+        main(settings['file'])
 

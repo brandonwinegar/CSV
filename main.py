@@ -29,6 +29,7 @@ def main(file):
             if current_channel != get_channel_name(currentLine):
                 current_channel = get_channel_name(currentLine)
                 channel_data_dict[current_channel] = {}
+                channel_data_dict[current_channel]['Type'] = get_io_type(currentLine)
             channel_data_dict[current_channel][get_channel_key(currentLine)] = get_channel_val(currentLine)
         except:
             pass
@@ -38,7 +39,7 @@ def main(file):
     worksheet = workbook.add_worksheet()
 
     # Standard Headers
-    group_names = ["ProgID", "Tag", "Detail", "Offset", "Scaling", "TaskName", "Group", "CalDate", "Cab Connector"]
+    group_names = ['ProgID', 'Tag', 'Detail', 'Type', 'Offset', 'Scaling', 'TaskName', 'Group', 'CalDate', 'Cab Connector']
 
     # Write Headers to worksheet
     for i in range(len(group_names)):
@@ -50,11 +51,11 @@ def main(file):
         for i in range(len(group_names) - 1):
             try:
                 current_tag = group_names[i+1]
-                info = channel_data_dict[key][current_tag]
+                info = channel_data_dict[key][current_tag].strip()
                 worksheet.write(line_number, i + 1, info)
             except KeyError:
                 # Error will be thrown if no data is present, will write nothing to cell.
-                worksheet.write(line_number, i + 1, "N/A")
+                worksheet.write(line_number, i + 1, '')
         line_number += 1
     workbook.close()
 
@@ -64,10 +65,10 @@ def main(file):
                 '{}\\{}\\{}'.format(base_path, 'Converted', validated_name))
 
     print("\nConversion complete. {} is now in the 'Converted' folder.".format(validated_name))
-    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()))
+    print(strftime('%Y-%m-%d %H:%M:%S', gmtime()))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
         settingsFile = os.getcwd() + '\\settings.txt'.format()
         process_settings(settingsFile)
         main(settings['file'])
